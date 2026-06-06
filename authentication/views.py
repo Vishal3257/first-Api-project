@@ -8,7 +8,7 @@ from myproject.settings import db
 from datetime import datetime, timedelta
 import random
 
-# --- ये दो नए इम्पोर्ट्स ऐड हुए हैं ---
+
 from django.core.mail import send_mail
 from django.conf import settings
 
@@ -62,23 +62,23 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            # 1. डेटाबेस में OTP सेव या अपडेट करना
+            
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            # 2. असली मोबाइल/जीमेल पर OTP भेजने का लॉजिक (यह नया ऐड हुआ है)
+           
             try:
-                subject = "आपका लाइव लॉगिन OTP"
-                message = f"प्रोजेक्ट टेस्टिंग के लिए आपका ओटीपी कोड है: {otp}\nयह कोड 5 मिनट के लिए वैलिड है।"
+                subject = "login  OTP"
+                message = f"{otp}\n"
                 from_email = settings.DEFAULT_FROM_EMAIL
                 recipient_list = [email]
 
                 send_mail(subject, message, from_email, recipient_list, fail_silently=False)
             except Exception as email_error:
-                # अगर ईमेल भेजने में कोई दिक्कत आए तो रेंडर के लॉग्स में एरर दिखेगी
+                
                 return Response({
                     "error": "Database updated but failed to send email. Check Render Logs.",
                     "details": str(email_error)
