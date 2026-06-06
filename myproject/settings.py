@@ -85,12 +85,16 @@ DATABASES = {
 }
 
 # ---  MongoDB  ---
+import os
 import pymongo
 
-# Local MongoDB connection URL
-MONGO_CLIENT = pymongo.MongoClient('mongodb://localhost:27017/')
 
-#  MongoDB 
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
+
+# MongoDB Client Connection
+MONGO_CLIENT = pymongo.MongoClient(MONGO_URI)
+
+
 db = MONGO_CLIENT['django_auth_db']
 
 
