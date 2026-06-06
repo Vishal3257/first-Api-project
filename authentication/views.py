@@ -58,18 +58,18 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            # 1. डेटाबेस में एंट्री सुरक्षित करें
+            
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            # 2. ईमेल का प्रयास (नेटवर्क ब्लॉकिंग को चकमा देने के लिए)
+            
             email_status = "Sent Successfully"
             try:
-                subject = "आपका लाइव लॉगिन OTP"
-                message = f"प्रोजेक्ट टेस्टिंग के लिए आपका ओटीपी कोड है: {otp}\nयह कोड 5 मिनट के लिए वैलिड है।"
+                subject = "Your OTP"
+                message = f"Your OTP is: {otp}\nThis code is valid for 5 minutes."
                 from_email = settings.DEFAULT_FROM_EMAIL
                 recipient_list = [email]
 
@@ -80,7 +80,7 @@ class SendOTPView(APIView):
             return Response({
                 "message": f"OTP processed for {email}!",
                 "email_delivery_status": email_status,
-                "otp_testing_only": otp  # यह ओटीपी अब सीधे स्वैगर रिस्पॉन्स में चमकेगा!
+                "otp_testing_only": otp  
             }, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
