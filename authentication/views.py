@@ -60,32 +60,31 @@ class SendOTPView(APIView):
                 return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
 
             otp = str(random.randint(100000, 999999))
-            expires_at = datetime.utcnow() + timedelta(minutes=5)
+            expires_at = datetime.utcnow() + timedelta(minutes=30)
 
-            
+           
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-           
+            
+            email_status = "Sent Successfully"
             try:
-                subject = "login  OTP"
-                message = f"{otp}\n"
+                subject = "login OTP"
+                message = f" {otp}\n"
                 from_email = settings.DEFAULT_FROM_EMAIL
                 recipient_list = [email]
 
                 send_mail(subject, message, from_email, recipient_list, fail_silently=False)
             except Exception as email_error:
                 
-                return Response({
-                    "error": "Database updated but failed to send email. Check Render Logs.",
-                    "details": str(email_error)
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                email_status = f"Failed to deliver email due to server network blocking: {str(email_error)}"
 
             return Response({
-                "message": f"OTP successfully sent to your mobile email ({email})!",
+                "message": f"OTP process completed for {email}!",
+                "email_delivery_status": email_status,
                 "otp_testing_only": otp  
             }, status=status.HTTP_200_OK)
             
