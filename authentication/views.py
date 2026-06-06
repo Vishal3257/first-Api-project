@@ -8,6 +8,7 @@ from myproject.settings import db
 from datetime import datetime, timedelta
 import random
 
+from drf_spectacular.utils import extend_schema 
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
 
 
@@ -17,6 +18,7 @@ from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerialize
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=SignUpSerializer, responses={201: dict})
     def post(self, request):
         serializer = SignUpSerializer(data=request.data)
         if serializer.is_valid():
@@ -38,35 +40,34 @@ class RegisterView(APIView):
 
 
 # ==========================================
-# 2. LOGIN - SEND OTP VIEW
+# 2. LOGIN - SEND OTP VIEW (Email Based)
 # ==========================================
 class SendOTPView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=SendOTPSerializer, responses={200: dict})
     def post(self, request):
         serializer = SendOTPSerializer(data=request.data)
         if serializer.is_valid():
-            username = serializer.validated_data['username']
+            email = serializer.validated_data['email']
             
-            
-            user = db.users.find_one({"username": username})
+           
+            user = db.users.find_one({"email": email})
             if not user:
-                return Response({"error": "User not found!"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
 
-            
             otp = str(random.randint(100000, 999999))
-            expires_at = datetime.utcnow() + timedelta(minutes=5) # 5 मिनट की वैलिडिटी
+            expires_at = datetime.utcnow() + timedelta(minutes=5)
 
            
             db.otps.update_one(
-                {"username": username},
+                {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            
             return Response({
-                "message": f"OTP successfully sent to your registered device!",
+                "message": f"OTP successfully sent to {email}!",
                 "otp_testing_only": otp  
             }, status=status.HTTP_200_OK)
             
@@ -74,34 +75,31 @@ class SendOTPView(APIView):
 
 
 # ==========================================
-# 3. LOGIN - VERIFY OTP VIEW (Token Generation)
+# 3. LOGIN - VERIFY OTP VIEW (Email Based)
 # ==========================================
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=VerifyOTPSerializer, responses={200: dict})
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
         if serializer.is_valid():
-            username = serializer.validated_data['username']
+            email = serializer.validated_data['email']
             user_otp = serializer.validated_data['otp']
 
-            
-            otp_record = db.otps.find_one({"username": username})
+           
+            otp_record = db.otps.find_one({"email": email})
 
             if not otp_record:
-                return Response({"error": "No OTP request found for this user."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "No OTP request found for this email."}, status=status.HTTP_400_BAD_REQUEST)
 
-            
             if datetime.utcnow() > otp_record['expires_at']:
                 return Response({"error": "OTP has expired!"}, status=status.HTTP_400_BAD_REQUEST)
 
-            
             if otp_record['otp'] == user_otp:
-                
-                db.otps.delete_one({"username": username})
+                db.otps.delete_one({"email": email})
 
-               
-                user = db.users.find_one({"username": username})
+                user = db.users.find_one({"email": email})
                 
                 token = RefreshToken()
                 token['username'] = user['username']
@@ -127,7 +125,7 @@ class ProfileView(APIView):
     def get(self, request):
         return Response({
             "message": "Welcome to your protected profile!",
-            "user": request.user.username
+            "user": request.user.username if hasattr(request.user, 'username') else "Authenticated User"
         }, status=status.HTTP_200_OK)
 
 
@@ -139,7 +137,6 @@ class LogoutView(APIView):
 
     def post(self, request):
         try:
-            
             refresh_token = request.data.get("refresh")
             if not refresh_token:
                 return Response({"error": "Refresh token is required to logout."}, status=status.HTTP_400_BAD_REQUEST)
