@@ -23,7 +23,7 @@ from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 urlpatterns = [
-    path('admin/', admin.site.split if hasattr(admin, 'site') else admin.site.urls),
+    path('admin/', admin.site.urls),
     
     
     path('api/auth/', include('authentication.urls')), 
