@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from myproject.settings import db
 from datetime import datetime, timedelta
 import random
+import jwt
 
 from django.core.mail import send_mail
 from django.conf import settings
@@ -58,14 +59,12 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            
             email_status = "Sent Successfully"
             try:
                 subject = "Your OTP"
@@ -111,6 +110,7 @@ class VerifyOTPView(APIView):
                 user = db.users.find_one({"email": email})
                 
                 token = RefreshToken()
+                token['user_id'] = str(user['_id'])
                 token['username'] = user['username']
                 token['email'] = user['email']
 
@@ -127,29 +127,32 @@ class VerifyOTPView(APIView):
 # 4. PROTECTED PROFILE VIEW 
 # ==========================================
 class ProfileView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
+    @extend_schema(responses={200: dict})
     def get(self, request):
-        return Response({
-            "message": "Welcome to your protected profile!",
-            "user": request.user.username if hasattr(request.user, 'username') else "Authenticated User"
-        }, status=status.HTTP_200_OK)
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return Response({"error": "Token missing!"}, status=status.HTTP_401_UNAUTHORIZED)
+            
+        token = auth_header.replace('Bearer ', '') if 'Bearer ' in auth_header else auth_header
+        try:
+            payload = jwt.decode(token, options={"verify_signature": False})
+            return Response({
+                "message": "Welcome to your protected profile!",
+                "username": payload.get("username"),
+                "email": payload.get("email"),
+                "server_status": "Operational"
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Invalid Token!"}, status=status.HTTP_401_UNAUTHORIZED)
 
 # ==========================================
 # 5. LOGOUT VIEW
 # ==========================================
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
+    @extend_schema(request=None, responses={200: dict})
     def post(self, request):
-        try:
-            refresh_token = request.data.get("refresh")
-            if not refresh_token:
-                return Response({"error": "Refresh token is required to logout."}, status=status.HTTP_400_BAD_REQUEST)
-                
-            token = RefreshToken(refresh_token)
-            token.blacklist() 
-
-            return Response({"message": "User logged out successfully!"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": "Invalid token or already logged out."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "User logged out successfully!"}, status=status.HTTP_200_OK)
