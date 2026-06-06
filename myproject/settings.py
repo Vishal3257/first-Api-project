@@ -88,14 +88,21 @@ DATABASES = {
 import os
 import pymongo
 
-
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017/")
-
-# MongoDB Client Connection
+# --- MongoDB Production Configuration ---
+MONGO_URI = os.environ.get("MONGO_URI")
 MONGO_CLIENT = pymongo.MongoClient(MONGO_URI)
-
-
 db = MONGO_CLIENT['django_auth_db']
+
+# --- Email Production Configuration ---
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+# ये वैल्यूज सीधे Render के Environment Panel से सुरक्षित तरीके से लोड होंगी
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # Password validation
@@ -145,16 +152,3 @@ REST_FRAMEWORK = {
 
 
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-
-
-EMAIL_HOST_USER = 'vt464670@gmail.com'  
-
-
-EMAIL_HOST_PASSWORD = 'eivf icvq nmlm jioy'  
-
-
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
