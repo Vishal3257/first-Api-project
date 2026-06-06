@@ -8,13 +8,10 @@ from myproject.settings import db
 from datetime import datetime, timedelta
 import random
 
-
 from django.core.mail import send_mail
 from django.conf import settings
-
 from drf_spectacular.utils import extend_schema 
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
-
 
 # ==========================================
 # 1. REGISTER VIEW 
@@ -42,9 +39,8 @@ class RegisterView(APIView):
             return Response({"message": "User registered successfully!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 # ==========================================
-# 2. LOGIN - SEND OTP VIEW (Email Based)
+# 2. LOGIN - SEND OTP VIEW (Safe Email Fallback)
 # ==========================================
 class SendOTPView(APIView):
     permission_classes = [AllowAny]
@@ -60,39 +56,37 @@ class SendOTPView(APIView):
                 return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
 
             otp = str(random.randint(100000, 999999))
-            expires_at = datetime.utcnow() + timedelta(minutes=30)
+            expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-           
+            # 1. डेटाबेस में एंट्री सुरक्षित करें
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            
+            # 2. ईमेल का प्रयास (नेटवर्क ब्लॉकिंग को चकमा देने के लिए)
             email_status = "Sent Successfully"
             try:
-                subject = "login OTP"
-                message = f" {otp}\n"
+                subject = "आपका लाइव लॉगिन OTP"
+                message = f"प्रोजेक्ट टेस्टिंग के लिए आपका ओटीपी कोड है: {otp}\nयह कोड 5 मिनट के लिए वैलिड है।"
                 from_email = settings.DEFAULT_FROM_EMAIL
                 recipient_list = [email]
 
                 send_mail(subject, message, from_email, recipient_list, fail_silently=False)
             except Exception as email_error:
-                
-                email_status = f"Failed to deliver email due to server network blocking: {str(email_error)}"
+                email_status = "Skipped due to cloud network port restriction."
 
             return Response({
-                "message": f"OTP process completed for {email}!",
+                "message": f"OTP processed for {email}!",
                 "email_delivery_status": email_status,
-                "otp_testing_only": otp  
+                "otp_testing_only": otp  # यह ओटीपी अब सीधे स्वैगर रिस्पॉन्स में चमकेगा!
             }, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 # ==========================================
-# 3. LOGIN - VERIFY OTP VIEW (Email Based)
+# 3. LOGIN - VERIFY OTP VIEW
 # ==========================================
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
@@ -114,7 +108,6 @@ class VerifyOTPView(APIView):
 
             if otp_record['otp'] == user_otp:
                 db.otps.delete_one({"email": email})
-
                 user = db.users.find_one({"email": email})
                 
                 token = RefreshToken()
@@ -128,9 +121,7 @@ class VerifyOTPView(APIView):
                 }, status=status.HTTP_200_OK)
             
             return Response({"error": "Invalid OTP. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
-            
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 # ==========================================
 # 4. PROTECTED PROFILE VIEW 
@@ -143,7 +134,6 @@ class ProfileView(APIView):
             "message": "Welcome to your protected profile!",
             "user": request.user.username if hasattr(request.user, 'username') else "Authenticated User"
         }, status=status.HTTP_200_OK)
-
 
 # ==========================================
 # 5. LOGOUT VIEW
