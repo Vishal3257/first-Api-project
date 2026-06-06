@@ -8,6 +8,10 @@ from myproject.settings import db
 from datetime import datetime, timedelta
 import random
 
+# --- ये दो नए इम्पोर्ट्स ऐड हुए हैं ---
+from django.core.mail import send_mail
+from django.conf import settings
+
 from drf_spectacular.utils import extend_schema 
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
 
@@ -51,7 +55,6 @@ class SendOTPView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data['email']
             
-           
             user = db.users.find_one({"email": email})
             if not user:
                 return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
@@ -59,15 +62,30 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-           
+            # 1. डेटाबेस में OTP सेव या अपडेट करना
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
+            # 2. असली मोबाइल/जीमेल पर OTP भेजने का लॉजिक (यह नया ऐड हुआ है)
+            try:
+                subject = "आपका लाइव लॉगिन OTP"
+                message = f"प्रोजेक्ट टेस्टिंग के लिए आपका ओटीपी कोड है: {otp}\nयह कोड 5 मिनट के लिए वैलिड है।"
+                from_email = settings.DEFAULT_FROM_EMAIL
+                recipient_list = [email]
+
+                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+            except Exception as email_error:
+                # अगर ईमेल भेजने में कोई दिक्कत आए तो रेंडर के लॉग्स में एरर दिखेगी
+                return Response({
+                    "error": "Database updated but failed to send email. Check Render Logs.",
+                    "details": str(email_error)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
             return Response({
-                "message": f"OTP successfully sent to {email}!",
+                "message": f"OTP successfully sent to your mobile email ({email})!",
                 "otp_testing_only": otp  
             }, status=status.HTTP_200_OK)
             
@@ -87,7 +105,6 @@ class VerifyOTPView(APIView):
             email = serializer.validated_data['email']
             user_otp = serializer.validated_data['otp']
 
-           
             otp_record = db.otps.find_one({"email": email})
 
             if not otp_record:
