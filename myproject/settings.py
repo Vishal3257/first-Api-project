@@ -67,15 +67,22 @@ DATABASES = {
 }
 
 # ==========================================
-# MONGODB CONFIGURATION
-# ==========================================
-MONGO_URI = os.environ.get("MONGO_URI")
-if MONGO_URI:
-    MONGO_CLIENT = pymongo.MongoClient(MONGO_URI)
-    db = MONGO_CLIENT['django_auth_db']
-else:
-    db = None
 
+# MONGODB CONFIGURATION (FIXED FOR RENDER)
+
+# ==========================================
+
+MONGO_URI = os.environ.get("MONGO_URI")
+
+if not MONGO_URI:
+
+    MONGO_URI = "mongodb://localhost:27017/"
+
+
+
+MONGO_CLIENT = pymongo.MongoClient(MONGO_URI)
+
+db = MONGO_CLIENT['django_auth_db']
 # ==========================================
 # GMAIL SMTP CONFIGURATION (SSL VERSION)
 # ==========================================
