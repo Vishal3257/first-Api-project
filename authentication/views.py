@@ -77,20 +77,20 @@ class SendOTPView(APIView):
                 # Render के Environment Variables से API Key उठाएगा
                 resend.api_key = os.environ.get("RESEND_API_KEY")
                 
-                # अगर Render पर सेट करना भूल जाओ, तो बैकअप के लिए अपनी Key यहाँ भी डाल सकते हो
+                # अगर Render पर सेट करना भूल जाओ, तो बैकअप के लिए तुम्हारी असली Key यहाँ काम करेगी
                 if not resend.api_key:
-                    resend.api_key = "re_YOUR_API_KEY_HERE" 
+                    resend.api_key = "re_JH69DfUg_9F398kKge4Tb2DXD4tdbPDEe" 
 
                 params = {
                     "from": "onboarding@resend.dev",  # Resend के फ्री टियर के लिए यही रहेगा
-                    "to": [email],                    # यूजर की असली ईमेल आईडी
+                    "to": [email],                    # यूजर की असली ईमेल आईडी (जैसे vt464670@gmail.com)
                     "subject": "Your OTP Code",
                     "html": f"<strong>Your OTP is: {otp}</strong><br>Valid for 5 minutes."
                 }
 
                 # यह HTTP POST के जरिए जाता है, इसलिए Render इसे ब्लॉक नहीं कर सकता
                 resend.Emails.send(params)
-                email_status = "OTP Sent via Resend API Successfully!"
+                email_status = f"OTP Sent via Resend API Successfully to {email}!"
                 
             except Exception as email_error:
                 email_status = f"Failed to send email via API: {str(email_error)}"
@@ -144,13 +144,17 @@ class VerifyOTPView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==========================================
-# 4. PROTECTED PROFILE VIEW (Updated)
+# 4. PROTECTED PROFILE VIEW (Updated with Swagger Lock)
 # ==========================================
 class ProfileView(APIView):
     authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(responses={200: dict})
+    # यहाँ security=[{'jwtAuth': []}] जोड़ दिया है ताकि स्वैगर में इस API के सामने ताला (Lock) लग जाए
+    @extend_schema(
+        responses={200: dict},
+        security=[{'jwtAuth': []}]
+    )
     def get(self, request):
         user = request.user
         return Response({
