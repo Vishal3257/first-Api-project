@@ -7,13 +7,14 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from myproject.settings import db
 from datetime import datetime, timedelta
 import random
+import resend  # असली ईमेल भेजने के लिए Resend लाइब्रेरी इम्पोर्ट की
+import os      # Environment Variables रीड करने के लिए
 
-from django.core.mail import send_mail
 from django.conf import settings
 from drf_spectacular.utils import extend_schema 
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
 
-# नई backends.py फ़ाइल से अपनी कस्टम क्लास यहाँ इम्पोर्ट करें
+# नई backends.py फ़ाइल से आपकी कस्टम क्लास यहाँ इम्पोर्ट हो रही है
 from .backends import SafeJWTAuthentication
 
 # ==========================================
@@ -43,7 +44,7 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==========================================
-# 2. LOGIN - SEND OTP VIEW (Safe Email Fallback)
+# 2. LOGIN - SEND OTP VIEW (Resend HTTP API Integration)
 # ==========================================
 class SendOTPView(APIView):
     permission_classes = [AllowAny]
@@ -63,29 +64,42 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            # Save to Database
+            # Save to Database (वर्कर क्रैश न होने के कारण यह अब 100% सेव होगा)
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            # Safe Email Block to prevent Render from throwing 500 Error
+            # --- RESEND HTTP API FOR REAL EMAIL DELIVERY ON RENDER ---
             email_status = "Sent Successfully"
             try:
-                subject = "Your OTP Code"
-                message = f"Your OTP is: {otp}\nValid for 5 minutes."
-                from_email = settings.DEFAULT_FROM_EMAIL
-                recipient_list = [email]
+                # Render के Environment Variables से API Key उठाएगा
+                resend.api_key = os.environ.get("RESEND_API_KEY")
+                
+                # अगर Render पर सेट करना भूल जाओ, तो बैकअप के लिए अपनी Key यहाँ भी डाल सकते हो
+                if not resend.api_key:
+                    resend.api_key = "re_YOUR_API_KEY_HERE" 
 
-                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+                params = {
+                    "from": "onboarding@resend.dev",  # Resend के फ्री टियर के लिए यही रहेगा
+                    "to": [email],                    # यूजर की असली ईमेल आईडी
+                    "subject": "Your OTP Code",
+                    "html": f"<strong>Your OTP is: {otp}</strong><br>Valid for 5 minutes."
+                }
+
+                # यह HTTP POST के जरिए जाता है, इसलिए Render इसे ब्लॉक नहीं कर सकता
+                resend.Emails.send(params)
+                email_status = "OTP Sent via Resend API Successfully!"
+                
             except Exception as email_error:
-                email_status = f"Bypassed cloud port restriction. Error: {str(email_error)}"
+                email_status = f"Failed to send email via API: {str(email_error)}"
+            # ------------------------------------------------------------------
 
             return Response({
                 "message": f"OTP processed for {email}!",
                 "email_delivery_status": email_status,
-                "otp": otp  
+                "otp": otp  # टेस्टिंग के लिए स्वैगर में भी ओटीपी दिखता रहेगा
             }, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
