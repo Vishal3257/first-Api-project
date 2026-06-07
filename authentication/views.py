@@ -4,8 +4,6 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.exceptions import AuthenticationFailed
 from myproject.settings import db
 from datetime import datetime, timedelta
 import random
@@ -15,30 +13,8 @@ from django.conf import settings
 from drf_spectacular.utils import extend_schema 
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
 
-# ==========================================
-# 0. CUSTOM SAFE JWT AUTHENTICATION FOR MONGODB
-# ==========================================
-class SafeJWTAuthentication(JWTAuthentication):
-    def get_user(self, validated_token):
-        
-        try:
-            user_data = {
-                "id": validated_token.get("user_id"),
-                "username": validated_token.get("username"),
-                "email": validated_token.get("email"),
-                "is_authenticated": True
-            }
-            
-            
-            class MockUser:
-                def __init__(self, data):
-                    self.__dict__.update(data)
-                def __str__(self):
-                    return self.email
-                    
-            return MockUser(user_data)
-        except Exception:
-            raise AuthenticationFailed("Invalid token payload")
+# नई backends.py फ़ाइल से अपनी कस्टम क्लास यहाँ इम्पोर्ट करें
+from .backends import SafeJWTAuthentication
 
 # ==========================================
 # 1. REGISTER VIEW 
@@ -76,7 +52,7 @@ class SendOTPView(APIView):
     def post(self, request):
         serializer = SendOTPSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email'].lower()  # केस सेंसिटिविटी से बचने के लिए ईमेल स्मॉल केस में किया
+            email = serializer.validated_data['email'].lower()  
             
             # Check if user exists
             user = db.users.find_one({"email": email})
@@ -124,7 +100,7 @@ class VerifyOTPView(APIView):
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email'].lower()  # हमेशा स्मॉल केस में कंपेयर करने के लिए
+            email = serializer.validated_data['email'].lower()  
             user_otp = serializer.validated_data['otp']
 
             otp_record = db.otps.find_one({"email": email})
@@ -157,13 +133,11 @@ class VerifyOTPView(APIView):
 # 4. PROTECTED PROFILE VIEW (Updated)
 # ==========================================
 class ProfileView(APIView):
-    
     authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     @extend_schema(responses={200: dict})
     def get(self, request):
-        
         user = request.user
         return Response({
             "message": "Welcome to your protected profile!",
