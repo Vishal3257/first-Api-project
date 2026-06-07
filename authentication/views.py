@@ -4,15 +4,41 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.exceptions import AuthenticationFailed
 from myproject.settings import db
 from datetime import datetime, timedelta
 import random
-import jwt
 
 from django.core.mail import send_mail
 from django.conf import settings
 from drf_spectacular.utils import extend_schema 
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
+
+# ==========================================
+# 0. CUSTOM SAFE JWT AUTHENTICATION FOR MONGODB
+# ==========================================
+class SafeJWTAuthentication(JWTAuthentication):
+    def get_user(self, validated_token):
+        
+        try:
+            user_data = {
+                "id": validated_token.get("user_id"),
+                "username": validated_token.get("username"),
+                "email": validated_token.get("email"),
+                "is_authenticated": True
+            }
+            
+            
+            class MockUser:
+                def __init__(self, data):
+                    self.__dict__.update(data)
+                def __str__(self):
+                    return self.email
+                    
+            return MockUser(user_data)
+        except Exception:
+            raise AuthenticationFailed("Invalid token payload")
 
 # ==========================================
 # 1. REGISTER VIEW 
@@ -50,7 +76,7 @@ class SendOTPView(APIView):
     def post(self, request):
         serializer = SendOTPSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            email = serializer.validated_data['email'].lower()  # केस सेंसिटिविटी से बचने के लिए ईमेल स्मॉल केस में किया
             
             # Check if user exists
             user = db.users.find_one({"email": email})
@@ -61,7 +87,7 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            # Save to Database (Which is already working fine!)
+            # Save to Database
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
@@ -78,14 +104,12 @@ class SendOTPView(APIView):
 
                 send_mail(subject, message, from_email, recipient_list, fail_silently=False)
             except Exception as email_error:
-                # Catching Render's network port restriction safely
                 email_status = f"Bypassed cloud port restriction. Error: {str(email_error)}"
 
-            # Sending response with OTP included so you can test smoothly!
             return Response({
                 "message": f"OTP processed for {email}!",
                 "email_delivery_status": email_status,
-                "otp": otp  # This will let you log in even if email fails on Render!
+                "otp": otp  
             }, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -100,7 +124,7 @@ class VerifyOTPView(APIView):
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            email = serializer.validated_data['email'].lower()  # हमेशा स्मॉल केस में कंपेयर करने के लिए
             user_otp = serializer.validated_data['otp']
 
             otp_record = db.otps.find_one({"email": email})
@@ -130,28 +154,26 @@ class VerifyOTPView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==========================================
-# 4. PROTECTED PROFILE VIEW 
+# 4. PROTECTED PROFILE VIEW (Updated)
 # ==========================================
 class ProfileView(APIView):
-    permission_classes = [AllowAny]
+    
+    authentication_classes = [SafeJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(responses={200: dict})
     def get(self, request):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return Response({"error": "Token missing!"}, status=status.HTTP_401_UNAUTHORIZED)
-            
-        token = auth_header.replace('Bearer ', '') if 'Bearer ' in auth_header else auth_header
-        try:
-            payload = jwt.decode(token, options={"verify_signature": False})
-            return Response({
-                "message": "Welcome to your protected profile!",
-                "username": payload.get("username"),
-                "email": payload.get("email"),
-                "server_status": "Operational"
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": "Invalid Token!"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        user = request.user
+        return Response({
+            "message": "Welcome to your protected profile!",
+            "user": {
+                "id": getattr(user, 'id', None),
+                "username": getattr(user, 'username', None),
+                "email": getattr(user, 'email', None),
+            },
+            "server_status": "Operational"
+        }, status=status.HTTP_200_OK)
 
 # ==========================================
 # 5. LOGOUT VIEW
