@@ -11,7 +11,7 @@ import resend  # असली ईमेल भेजने के लिए Rese
 import os      # Environment Variables रीड करने के लिए
 
 from django.conf import settings
-from drf_spectacular.utils import extend_schema 
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
 
 # नई backends.py फ़ाइल से आपकी कस्टम क्लास यहाँ इम्पोर्ट हो रही है
@@ -64,7 +64,7 @@ class SendOTPView(APIView):
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            # Save to Database (वर्कर क्रैश न होने के कारण यह अब 100% सेव होगा)
+            # Save to Database
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
@@ -74,21 +74,18 @@ class SendOTPView(APIView):
             # --- RESEND HTTP API FOR REAL EMAIL DELIVERY ON RENDER ---
             email_status = "Sent Successfully"
             try:
-                # Render के Environment Variables से API Key उठाएगा
                 resend.api_key = os.environ.get("RESEND_API_KEY")
                 
-                # अगर Render पर सेट करना भूल जाओ, तो बैकअप के लिए तुम्हारी असली Key यहाँ काम करेगी
                 if not resend.api_key:
                     resend.api_key = "re_JH69DfUg_9F398kKge4Tb2DXD4tdbPDEe" 
 
                 params = {
-                    "from": "onboarding@resend.dev",  # Resend के फ्री टियर के लिए यही रहेगा
-                    "to": [email],                    # यूजर की असली ईमेल आईडी (जैसे vt464670@gmail.com)
+                    "from": "onboarding@resend.dev",
+                    "to": [email],
                     "subject": "Your OTP Code",
                     "html": f"<strong>Your OTP is: {otp}</strong><br>Valid for 5 minutes."
                 }
 
-                # यह HTTP POST के जरिए जाता है, इसलिए Render इसे ब्लॉक नहीं कर सकता
                 resend.Emails.send(params)
                 email_status = f"OTP Sent via Resend API Successfully to {email}!"
                 
@@ -99,7 +96,7 @@ class SendOTPView(APIView):
             return Response({
                 "message": f"OTP processed for {email}!",
                 "email_delivery_status": email_status,
-                "otp": otp  # टेस्टिंग के लिए स्वैगर में भी ओटीपी दिखता रहेगा
+                "otp": otp  
             }, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -143,19 +140,17 @@ class VerifyOTPView(APIView):
             return Response({"error": "Invalid OTP. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 # ==========================================
-# 4. PROTECTED PROFILE VIEW (Correct Syntax)
+# 4. PROTECTED PROFILE VIEW (Fixed with extend_schema_view)
 # ==========================================
+# यहाँ हम पूरे View के लिए स्कीमैटिक्स अलग से डिफाइन कर रहे हैं ताकि पुराना TypeError कभी न आए
+@extend_schema_view(
+    get=extend_schema(responses={200: dict})
+)
 class ProfileView(APIView):
     authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    
-    @extend_schema(
-        responses={200: dict},
-        security=[{'jwtAuth': []}]  
-    )
     def get(self, request):
         user = request.user
         return Response({
@@ -167,6 +162,7 @@ class ProfileView(APIView):
             },
             "server_status": "Operational"
         }, status=status.HTTP_200_OK)
+
 # ==========================================
 # 5. LOGOUT VIEW
 # ==========================================
