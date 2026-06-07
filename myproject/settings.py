@@ -8,23 +8,13 @@ from pathlib import Path
 import os
 import pymongo
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-%l9((7)miqilnmg-6-nlk()1ko*lm7nlwz+^zn7nf1jbp*d!f3')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-%l9((7)miqilnmg-6-nlk()1ko*lm7nlwz+^zn7nf1jbp*d!f3'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ['*']
-
-
-# Application definition
+ALLOWED_HOSTS = ['*', 'first-api-project-wuxr.onrender.com']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -69,10 +59,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'myproject.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -80,17 +66,21 @@ DATABASES = {
     }
 }
 
-# ---  MongoDB  ---
-# --- MongoDB Production Configuration ---
+# ==========================================
+# MONGODB CONFIGURATION
+# ==========================================
 MONGO_URI = os.environ.get("MONGO_URI")
-MONGO_CLIENT = pymongo.MongoClient(MONGO_URI)
-db = MONGO_CLIENT['django_auth_db']
+if MONGO_URI:
+    MONGO_CLIENT = pymongo.MongoClient(MONGO_URI)
+    db = MONGO_CLIENT['django_auth_db']
+else:
+    db = None
 
-
-# --- Email Production Configuration ---
+# ==========================================
+# GMAIL SMTP CONFIGURATION
+# ==========================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
@@ -99,9 +89,6 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vt464670@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 EMAIL_TIMEOUT = 10
-
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -118,27 +105,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
-
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# ==============================================================================
-# --- REST FRAMEWORK & SWAGGER LOCK CONFIGURATION ---
-# ==============================================================================
+# ==========================================
+# REST FRAMEWORK & SWAGGER CONFIGURATION
+# ==========================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'authentication.backends.SafeJWTAuthentication', 
@@ -146,17 +123,12 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
-# यही वो ब्लॉक है जो स्वैगर पर "Authorize" ताला बटन लेकर आएगा
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Your API Project',
-    'DESCRIPTION': 'Authentication API with MongoDB and Resend OTP',
+    'DESCRIPTION': 'Authentication API with MongoDB and Gmail SMTP OTP',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    
-    # यह स्वैगर को बताएगा कि पूरे प्रोजेक्ट में सिक्योरिटी के लिए 'jwtAuth' का इस्तेमाल होगा
     'SECURITY': [{'jwtAuth': []}],
-    
-    # यहाँ हम डिफाइन कर रहे हैं कि 'jwtAuth' असल में एक Bearer Token (JWT) है
     'APPEND_COMPONENTS': {
         'securitySchemes': {
             'jwtAuth': {
