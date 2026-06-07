@@ -143,17 +143,17 @@ class VerifyOTPView(APIView):
             return Response({"error": "Invalid OTP. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# ==========================================
-# 4. PROTECTED PROFILE VIEW (Updated with Swagger Lock)
+    # ==========================================
+# 4. PROTECTED PROFILE VIEW (Updated Fix)
 # ==========================================
 class ProfileView(APIView):
     authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # यहाँ security=[{'jwtAuth': []}] जोड़ दिया है ताकि स्वैगर में इस API के सामने ताला (Lock) लग जाए
+    # फिक्स: @extend_schema को हमेशा HTTP मेथड (get, post आदि) के ठीक ऊपर लगाना चाहिए
     @extend_schema(
         responses={200: dict},
-        security=[{'jwtAuth': []}]
+        security=[{'jwtAuth': []}]  # अब यह बिना किसी TypeError के चुपचाप काम करेगा!
     )
     def get(self, request):
         user = request.user
@@ -166,7 +166,6 @@ class ProfileView(APIView):
             },
             "server_status": "Operational"
         }, status=status.HTTP_200_OK)
-
 # ==========================================
 # 5. LOGOUT VIEW
 # ==========================================
