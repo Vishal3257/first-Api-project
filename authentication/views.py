@@ -4,17 +4,14 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from myproject.settings import db
+from django.core.mail import send_mail
+from django.conf import settings
 from datetime import datetime, timedelta
 import random
-import resend  # असली ईमेल भेजने के लिए Resend लाइब्रेरी इम्पोर्ट की
-import os      # Environment Variables रीड करने के लिए
 
-from django.conf import settings
+from myproject.settings import db
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from .serializers import SignUpSerializer, SendOTPSerializer, VerifyOTPSerializer
-
-# नई backends.py फ़ाइल से आपकी कस्टम क्लास यहाँ इम्पोर्ट हो रही है
 from .backends import SafeJWTAuthentication
 
 # ==========================================
@@ -44,7 +41,7 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==========================================
-# 2. LOGIN - SEND OTP VIEW (Resend HTTP API Integration)
+# 2. LOGIN - SEND OTP VIEW (Gmail SMTP)
 # ==========================================
 class SendOTPView(APIView):
     permission_classes = [AllowAny]
@@ -55,43 +52,31 @@ class SendOTPView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data['email'].lower()  
             
-            # Check if user exists
             user = db.users.find_one({"email": email})
             if not user:
                 return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Generate OTP
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
-            # Save to Database
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
-            # --- RESEND HTTP API FOR REAL EMAIL DELIVERY ON RENDER ---
             email_status = "Sent Successfully"
             try:
-                resend.api_key = os.environ.get("RESEND_API_KEY")
-                
-                if not resend.api_key:
-                    resend.api_key = "re_JH69DfUg_9F398kKge4Tb2DXD4tdbPDEe" 
+                subject = "Your Login OTP Code"
+                message = f"Your OTP for login is: {otp}\nValid for 5 minutes. Please do not share it with anyone."
+                from_email = settings.EMAIL_HOST_USER
+                recipient_list = [email]
 
-                params = {
-                    "from": "onboarding@resend.dev",
-                    "to": [email],
-                    "subject": "Your OTP Code",
-                    "html": f"<strong>Your OTP is: {otp}</strong><br>Valid for 5 minutes."
-                }
-
-                resend.Emails.send(params)
-                email_status = f"OTP Sent via Resend API Successfully to {email}!"
+                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+                email_status = f"OTP Sent via Gmail SMTP successfully to {email}!"
                 
             except Exception as email_error:
-                email_status = f"Failed to send email via API: {str(email_error)}"
-            # ------------------------------------------------------------------
+                email_status = f"Gmail SMTP Failed: {str(email_error)}"
 
             return Response({
                 "message": f"OTP processed for {email}!",
@@ -141,9 +126,8 @@ class VerifyOTPView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==========================================
-# 4. PROTECTED PROFILE VIEW (Fixed with extend_schema_view)
+# 4. PROTECTED PROFILE VIEW
 # ==========================================
-# यहाँ हम पूरे View के लिए स्कीमैटिक्स अलग से डिफाइन कर रहे हैं ताकि पुराना TypeError कभी न आए
 @extend_schema_view(
     get=extend_schema(responses={200: dict})
 )
