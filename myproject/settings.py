@@ -77,13 +77,14 @@ else:
     db = None
 
 # ==========================================
-# GMAIL SMTP CONFIGURATION
+# GMAIL SMTP CONFIGURATION (SSL VERSION)
 # ==========================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
+EMAIL_PORT = 465               # पोर्ट 587 से बदलकर 465 किया
+EMAIL_USE_TLS = False          # SSL के लिए TLS फॉल्स रहेगा
+EMAIL_USE_SSL = True           # SSL को ट्रू किया
+EMAIL_TIMEOUT = 20
 
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vt464670@gmail.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
