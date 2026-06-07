@@ -4,10 +4,12 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth.hashers import make_password
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.core.mail import send_mail
 from django.conf import settings
-from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import timedelta
 import random
+import resend
+import os
 
 from myproject.settings import db
 from drf_spectacular.utils import extend_schema, extend_schema_view
@@ -41,7 +43,7 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # ==========================================
-# 2. LOGIN - SEND OTP VIEW (Gmail SMTP)
+# 2. LOGIN - SEND OTP VIEW (Resend HTTP API)
 # ==========================================
 class SendOTPView(APIView):
     permission_classes = [AllowAny]
@@ -57,7 +59,7 @@ class SendOTPView(APIView):
                 return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
 
             otp = str(random.randint(100000, 999999))
-            expires_at = datetime.utcnow() + timedelta(minutes=5)
+            expires_at = timezone.now() + timedelta(minutes=5)
 
             db.otps.update_one(
                 {"email": email},
@@ -67,16 +69,21 @@ class SendOTPView(APIView):
 
             email_status = "Sent Successfully"
             try:
-                subject = "Your Login OTP Code"
-                message = f"Your OTP for login is: {otp}\nValid for 5 minutes. Please do not share it with anyone."
-                from_email = settings.EMAIL_HOST_USER
-                recipient_list = [email]
+                # एनवायरनमेंट वेरिएबल से की रीड करना या सीधे फॉलबैक यूज़ करना
+                resend.api_key = os.environ.get("RESEND_API_KEY", "re_JH69DfUg_9F398kKge4Tb2DXD4tdbPDEe")
 
-                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
-                email_status = f"OTP Sent via Gmail SMTP successfully to {email}!"
+                params = {
+                    "from": "onboarding@resend.dev",
+                    "to": [email],
+                    "subject": "Your Login OTP Code",
+                    "html": f"<strong>Your OTP Code is: {otp}</strong><br>Valid for 5 minutes. Please do not share it."
+                }
+
+                resend.Emails.send(params)
+                email_status = f"OTP Sent via Resend API successfully to {email}!"
                 
             except Exception as email_error:
-                email_status = f"Gmail SMTP Failed: {str(email_error)}"
+                email_status = f"Resend API Failed: {str(email_error)}"
 
             return Response({
                 "message": f"OTP processed for {email}!",
@@ -104,7 +111,13 @@ class VerifyOTPView(APIView):
             if not otp_record:
                 return Response({"error": "No OTP request found for this email."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if datetime.utcnow() > otp_record['expires_at']:
+            current_time = timezone.now()
+            record_expiry = otp_record['expires_at']
+            
+            if record_expiry.tzinfo is None:
+                record_expiry = timezone.make_aware(record_expiry)
+
+            if current_time > record_expiry:
                 return Response({"error": "OTP has expired!"}, status=status.HTTP_400_BAD_REQUEST)
 
             if otp_record['otp'] == user_otp:
