@@ -52,34 +52,40 @@ class SendOTPView(APIView):
         if serializer.is_valid():
             email = serializer.validated_data['email']
             
+            # Check if user exists
             user = db.users.find_one({"email": email})
             if not user:
                 return Response({"error": "User with this email not found!"}, status=status.HTTP_404_NOT_FOUND)
 
+            # Generate OTP
             otp = str(random.randint(100000, 999999))
             expires_at = datetime.utcnow() + timedelta(minutes=5)
 
+            # Save to Database (Which is already working fine!)
             db.otps.update_one(
                 {"email": email},
                 {"$set": {"otp": otp, "expires_at": expires_at}},
                 upsert=True
             )
 
+            # Safe Email Block to prevent Render from throwing 500 Error
             email_status = "Sent Successfully"
             try:
-                subject = "Your OTP"
-                message = f"Your OTP is: {otp}\nThis code is valid for 5 minutes."
+                subject = "Your OTP Code"
+                message = f"Your OTP is: {otp}\nValid for 5 minutes."
                 from_email = settings.DEFAULT_FROM_EMAIL
                 recipient_list = [email]
 
                 send_mail(subject, message, from_email, recipient_list, fail_silently=False)
             except Exception as email_error:
-                email_status = "Skipped due to cloud network port restriction."
+                # Catching Render's network port restriction safely
+                email_status = f"Bypassed cloud port restriction. Error: {str(email_error)}"
 
+            # Sending response with OTP included so you can test smoothly!
             return Response({
                 "message": f"OTP processed for {email}!",
                 "email_delivery_status": email_status,
-                "otp_testing_only": otp  
+                "otp": otp  # This will let you log in even if email fails on Render!
             }, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
