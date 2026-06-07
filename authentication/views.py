@@ -143,17 +143,18 @@ class VerifyOTPView(APIView):
             return Response({"error": "Invalid OTP. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # ==========================================
-# 4. PROTECTED PROFILE VIEW (Updated Fix)
+
+# ==========================================
+# 4. PROTECTED PROFILE VIEW (Correct Syntax)
 # ==========================================
 class ProfileView(APIView):
     authentication_classes = [SafeJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # फिक्स: @extend_schema को हमेशा HTTP मेथड (get, post आदि) के ठीक ऊपर लगाना चाहिए
+    
     @extend_schema(
         responses={200: dict},
-        security=[{'jwtAuth': []}]  # अब यह बिना किसी TypeError के चुपचाप काम करेगा!
+        security=[{'jwtAuth': []}]  
     )
     def get(self, request):
         user = request.user
