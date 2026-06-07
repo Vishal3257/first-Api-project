@@ -13,3 +13,10 @@ class SendOTPSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6)
+
+
+# todo curd method serializer
+class TodoSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=255, required=True)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    is_completed = serializers.BooleanField(default=False)    
