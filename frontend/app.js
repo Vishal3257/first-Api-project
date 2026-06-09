@@ -82,7 +82,7 @@ async function handleSendOTP() {
     if(!emailInput) return alert("Please enter email!");
 
     try {
-        const res = await fetch(`${BASE_URL}/send-otp/`, {
+        const res = await fetch(`${BASE_URL}/login/send-otp/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: emailInput })
@@ -106,7 +106,7 @@ async function handleVerifyOTP() {
     const msg = document.getElementById("auth-message");
 
     try {
-        const res = await fetch(`${BASE_URL}/verify-otp/`, {
+        const res = await fetch(`${BASE_URL}/login/verify-otp/`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: emailInput, otp: codeInput })
