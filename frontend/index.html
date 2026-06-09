@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure To-Do App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="login-section" class="card">
+        <h2>Sign In</h2>
+        <div class="input-group">
+            <input type="text" id="username" placeholder="Username" required>
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Password" required>
+        </div>
+        <button id="login-btn" onclick="handleLogin()">Login</button>
+        <p id="login-error" class="error"></p>
+    </div>
+
+    <div id="todo-section" class="card hidden">
+        <div class="header">
+            <h2>My Tasks ☕</h2>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+
+        <div class="todo-form">
+            <input type="text" id="todo-title" placeholder="What needs to be done?">
+            <button onclick="createTodo()">Add Task</button>
+        </div>
+
+        <ul id="todo-list"></ul>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
