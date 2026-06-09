@@ -1,4 +1,4 @@
-# authentication/backends.py फ़ाइल का पूरा कोड
+# authentication/backends.py 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
@@ -10,7 +10,7 @@ class SafeJWTAuthentication(JWTAuthentication):
                 "username": validated_token.get("username"),
                 "email": validated_token.get("email"),
                 "is_authenticated": True,
-                "is_active": True,       # जांगो परमिशन के लिए ज़रूरी
+                "is_active": True,       
                 "is_staff": False,
                 "_backend": 'django.contrib.auth.backends.ModelBackend',
             }

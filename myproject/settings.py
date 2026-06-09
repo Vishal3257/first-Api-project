@@ -28,9 +28,11 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'authentication',
     'rest_framework_simplejwt.token_blacklist',
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -88,9 +90,9 @@ db = MONGO_CLIENT['django_auth_db']
 # ==========================================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 465               # पोर्ट 587 से बदलकर 465 किया
-EMAIL_USE_TLS = False          # SSL के लिए TLS फॉल्स रहेगा
-EMAIL_USE_SSL = True           # SSL को ट्रू किया
+EMAIL_PORT = 465               
+EMAIL_USE_TLS = False          
+EMAIL_USE_SSL = True           
 EMAIL_TIMEOUT = 20
 
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'vt464670@gmail.com')
@@ -148,3 +150,6 @@ SPECTACULAR_SETTINGS = {
         }
     },
 }
+
+# CORS CONFIGURATION
+CORS_ALLOW_ALL_ORIGINS = True
