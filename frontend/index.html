@@ -3,34 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure To-Do App</title>
+    <title>Secure Full-Stack Auth & To-Do</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <div id="login-section" class="card">
-        <h2>Sign In</h2>
-        <div class="input-group">
-            <input type="text" id="username" placeholder="Username" required>
+    <!-- 🔒 AUTHENTICATION BOX -->
+    <div id="auth-section" class="card">
+        <!-- टैब बटन्स (लॉगिन / साइनअप बदलने के लिए) -->
+        <div class="tabs">
+            <button id="tab-login" class="active-tab" onclick="switchTab('login')">Sign In</button>
+            <button id="tab-register" onclick="switchTab('register')">Sign Up</button>
         </div>
-        <div class="input-group">
-            <input type="password" id="password" placeholder="Password" required>
+
+        <!-- 1. नॉर्मल पासवर्ड लॉगिन फॉर्म -->
+        <div id="login-form">
+            <div class="input-group">
+                <input type="text" id="username" placeholder="Username">
+            </div>
+            <div class="input-group">
+                <input type="password" id="password" placeholder="Password">
+            </div>
+            <button onclick="handleLogin()">Login with Password</button>
+            <hr>
+            <p style="text-align: center; font-size: 14px; color: #666;">या फिर ईमेल OTP से लॉगिन करें</p>
+            <div class="input-group">
+                <input type="email" id="otp-email" placeholder="Enter Registered Email">
+            </div>
+            <button onclick="handleSendOTP()" style="background-color: #28a745;">Send OTP</button>
         </div>
-        <button id="login-btn" onclick="handleLogin()">Login</button>
-        <p id="login-error" class="error"></p>
+
+        <!-- 2. ओटीपी वेरिफिकेशन फॉर्म (शुरुआत में छुपा रहेगा) -->
+        <div id="otp-verify-form" class="hidden">
+            <p style="color: #28a745; font-size: 14px; text-align: center;">ओटीपी आपके ईमेल पर भेज दिया गया है!</p>
+            <div class="input-group">
+                <input type="text" id="otp-code" placeholder="Enter 6-Digit OTP">
+            </div>
+            <button onclick="handleVerifyOTP()" style="background-color: #ffc107; color: black;">Verify & Login</button>
+        </div>
+
+        <!-- 3. रजिस्ट्रेशन (साइनअप) फॉर्म -->
+        <div id="register-form" class="hidden">
+            <div class="input-group">
+                <input type="text" id="reg-username" placeholder="Choose Username">
+            </div>
+            <div class="input-group">
+                <input type="email" id="reg-email" placeholder="Your Email Address">
+            </div>
+            <div class="input-group">
+                <input type="password" id="reg-password" placeholder="Create Password">
+            </div>
+            <button onclick="handleRegister()" style="background-color: #17a2b8;">Create Account</button>
+        </div>
+
+        <p id="auth-message" class="message"></p>
     </div>
 
+    <!-- 📝 TODO DASHBOARD -->
     <div id="todo-section" class="card hidden">
         <div class="header">
             <h2>My Tasks ☕</h2>
             <button class="logout-btn" onclick="handleLogout()">Logout</button>
         </div>
-
         <div class="todo-form">
             <input type="text" id="todo-title" placeholder="What needs to be done?">
             <button onclick="createTodo()">Add Task</button>
         </div>
-
         <ul id="todo-list"></ul>
     </div>
 

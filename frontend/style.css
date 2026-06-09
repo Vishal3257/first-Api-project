@@ -53,3 +53,31 @@ li {
 }
 .error { color: red; font-size: 14px; }
 .logout-btn { background-color: #dc3545; width: auto; padding: 6px 12px; }
+
+
+
+.tabs {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ddd;
+}
+.tabs button {
+    background: none;
+    color: #666;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    width: 45%;
+}
+.tabs button:hover { background: none; color: #007bff; }
+.tabs button.active-tab {
+    color: #007bff;
+    border-bottom: 3px solid #007bff;
+}
+hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+.success { color: green !important; text-align: center; font-weight: bold; margin-top: 10px;}
